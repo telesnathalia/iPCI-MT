@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>iPCI · Pastagens de Mato Grosso | LAPIG/UFG</title>
+  <meta name="description" content="Atualização do mapeamento das áreas e da condição das pastagens de Mato Grosso (2015–2026) e mapeamento experimental de florestas plantadas — LAPIG/UFG em parceria com o Instituto PCI.">
+
+  <!-- Leaflet (mapa interativo) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+  <style>
+    :root {
+      --verde: #2f6b3a;
+      --verde-claro: #e8f1e9;
+      --terracota: #b8583a;
+      --terracota-claro: #f7e9e3;
+      --solo: #7a5a3c;
+      --areia: #f6f2ec;
+      --texto: #22281f;
+      --texto-suave: #5d6458;
+      --borda: #e3e0da;
+      --vigor-alto: #2f6b3a;
+      --vigor-medio: #d9a441;
+      --vigor-baixo: #b8583a;
+      --raio: 10px;
+      --largura: 1120px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+    body {
+      font-family: Calibri, Carlito, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: var(--texto);
+      background: #fff;
+      line-height: 1.55;
+      font-size: 17px;
+    }
+    a { color: var(--verde); }
+    .container { max-width: var(--largura); margin: 0 auto; padding: 0 24px; }
+
+    /* ---------- Faixa de demo ---------- */
+    .demo-bar {
+      background: var(--terracota-claro);
+      color: var(--terracota);
+      font-size: 14px;
+      text-align: center;
+      padding: 6px 12px;
+      border-bottom: 1px solid #efd6cb;
+    }
+
+    /* ---------- Cabeçalho ---------- */
+    header {
+      position: sticky; top: 0; z-index: 1000;
+      background: rgba(255,255,255,.96);
+      backdrop-filter: blur(6px);
+      border-bottom: 1px solid var(--borda);
+    }
+    .nav { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+    .marca { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--texto); }
+    .marca-icone {
+      width: 34px; height: 34px; border-radius: 8px;
+      background: var(--verde); display: grid; place-items: center;
+    }
+    .marca strong { font-size: 18px; letter-spacing: .2px; }
+    .marca span { display: block; font-size: 12.5px; color: var(--texto-suave); line-height: 1.1; }
+    nav ul { display: flex; gap: 22px; list-style: none; }
+    nav a { text-decoration: none; color: var(--texto-suave); font-size: 15.5px; }
+    nav a:hover { color: var(--verde); }
+    .menu-btn { display: none; background: none; border: 0; cursor: pointer; padding: 6px; }
+
+    /* ---------- Hero ---------- */
+    .hero { padding: 72px 0 56px; background: linear-gradient(180deg, var(--areia) 0%, #fff 100%); }
+    .etiqueta {
+      display: inline-block; font-size: 13px; font-weight: 700; letter-spacing: .8px;
+      text-transform: uppercase; color: var(--terracota); margin-bottom: 14px;
+    }
+    .hero h1 { font-size: clamp(32px, 4.6vw, 50px); line-height: 1.1; max-width: 820px; color: var(--texto); }
+    .hero h1 em { font-style: normal; color: var(--verde); }
+    .hero p.lead { margin-top: 18px; font-size: 19.5px; color: var(--texto-suave); max-width: 740px; }
+    .botoes { margin-top: 28px; display: flex; gap: 12px; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+      padding: 11px 20px; border-radius: 8px; font-weight: 700; font-size: 15.5px;
+      border: 1.5px solid var(--verde);
+    }
+    .btn-primario { background: var(--verde); color: #fff; }
+    .btn-primario:hover { background: #255830; }
+    .btn-secundario { color: var(--verde); background: #fff; }
+    .btn-secundario:hover { background: var(--verde-claro); }
+
+    /* ---------- Números ---------- */
+    .numeros { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 48px; }
+    .numero {
+      background: #fff; border: 1px solid var(--borda); border-radius: var(--raio);
+      padding: 20px; border-top: 3px solid var(--verde);
+    }
+    .numero:nth-child(2) { border-top-color: var(--terracota); }
+    .numero:nth-child(3) { border-top-color: var(--solo); }
+    .numero:nth-child(4) { border-top-color: var(--vigor-medio); }
+    .numero b { display: block; font-size: 32px; line-height: 1.1; color: var(--texto); }
+    .numero span { font-size: 14.5px; color: var(--texto-suave); }
+
+    /* ---------- Seções ---------- */
+    section { padding: 72px 0; }
+    section.cinza { background: var(--areia); }
+    .titulo-secao { margin-bottom: 36px; max-width: 760px; }
+    .titulo-secao h2 { font-size: 32px; line-height: 1.2; }
+    .titulo-secao p { margin-top: 10px; color: var(--texto-suave); font-size: 18px; }
+
+    /* ---------- Cards de escopo ---------- */
+    .grade-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+    .card {
+      background: #fff; border: 1px solid var(--borda); border-radius: var(--raio);
+      padding: 24px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .icone {
+      width: 44px; height: 44px; border-radius: 50%;
+      display: grid; place-items: center; background: var(--verde-claro);
+    }
+    .icone.t { background: var(--terracota-claro); }
+    .icone.s { background: #f1ebe4; }
+    .icone svg { width: 22px; height: 22px; }
+    .card h3 { font-size: 19px; line-height: 1.25; }
+    .card p { font-size: 15.5px; color: var(--texto-suave); }
+    .card .meta {
+      margin-top: auto; font-size: 13.5px; font-weight: 700; color: var(--verde);
+      padding-top: 10px; border-top: 1px dashed var(--borda);
+    }
+    .card .meta.exp { color: var(--terracota); }
+
+    /* ---------- Metodologia ---------- */
+    .metodo { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+    .fluxo { list-style: none; counter-reset: passo; }
+    .fluxo li {
+      counter-increment: passo; position: relative;
+      padding: 0 0 22px 52px; border-left: 2px solid var(--borda); margin-left: 17px;
+    }
+    .fluxo li:last-child { border-left-color: transparent; padding-bottom: 0; }
+    .fluxo li::before {
+      content: counter(passo); position: absolute; left: -18px; top: -2px;
+      width: 34px; height: 34px; border-radius: 50%; background: #fff;
+      border: 2px solid var(--verde); color: var(--verde); font-weight: 700;
+      display: grid; place-items: center; font-size: 15px;
+    }
+    .fluxo h4 { font-size: 17px; }
+    .fluxo p { font-size: 15.5px; color: var(--texto-suave); }
+    .bloco-metodo h3 { font-size: 20px; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; }
+    .bloco-metodo h3 i { width: 10px; height: 10px; border-radius: 50%; background: var(--verde); display: inline-block; }
+    .bloco-metodo.t h3 i { background: var(--terracota); }
+    .bloco-metodo.t .fluxo li::before { border-color: var(--terracota); color: var(--terracota); }
+    .classes { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+    .classe { font-size: 13px; padding: 3px 10px; border-radius: 99px; color: #fff; font-weight: 700; }
+
+    /* ---------- Cronograma ---------- */
+    .linha-tempo { position: relative; }
+    .barra-meses {
+      display: grid; grid-template-columns: repeat(12, 1fr);
+      font-size: 12.5px; color: var(--texto-suave); margin: 0 0 10px 230px;
+    }
+    .barra-meses span { text-align: center; border-left: 1px solid var(--borda); }
+    .produto-linha {
+      display: grid; grid-template-columns: 230px 1fr; align-items: center;
+      padding: 12px 0; border-top: 1px solid var(--borda);
+    }
+    .produto-linha .nome b { display: block; font-size: 16px; }
+    .produto-linha .nome small { color: var(--texto-suave); font-size: 13.5px; }
+    .trilha { position: relative; height: 30px; display: grid; grid-template-columns: repeat(12, 1fr); }
+    .trilha span { border-left: 1px solid var(--borda); }
+    .marco {
+      position: absolute; top: 3px; height: 24px; border-radius: 6px;
+      background: var(--verde-claro); border: 1.5px solid var(--verde);
+      font-size: 12.5px; font-weight: 700; color: var(--verde);
+      display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; white-space: nowrap;
+    }
+    .marco.ativo { background: var(--verde); color: #fff; }
+    .status {
+      display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 99px;
+      margin-top: 4px; background: #eee; color: var(--texto-suave);
+    }
+    .status.andamento { background: var(--terracota-claro); color: var(--terracota); }
+    .detalhe-produtos { margin-top: 32px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+    .detalhe-produtos div { border: 1px solid var(--borda); border-radius: var(--raio); padding: 16px; background: #fff; }
+    .detalhe-produtos b { color: var(--verde); font-size: 15px; }
+    .detalhe-produtos p { font-size: 14px; color: var(--texto-suave); margin-top: 6px; }
+
+    /* ---------- Mapa ---------- */
+    .mapa-wrap { display: grid; grid-template-columns: 1fr 300px; gap: 20px; }
+    #mapa { height: 520px; border-radius: var(--raio); border: 1px solid var(--borda); background: var(--areia); }
+    .painel { border: 1px solid var(--borda); border-radius: var(--raio); padding: 20px; background: #fff; }
+    .painel h3 { font-size: 18px; margin-bottom: 12px; }
+    .camada { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--borda); font-size: 15px; }
+    .camada:last-of-type { border-bottom: 0; }
+    .camada input { accent-color: var(--verde); width: 16px; height: 16px; }
+    .camada.off { color: #a3a59f; }
+    .camada small { margin-left: auto; font-size: 12px; color: var(--terracota); font-weight: 700; }
+    .legenda { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--borda); }
+    .legenda h4 { font-size: 14px; color: var(--texto-suave); margin-bottom: 8px; font-weight: 700; }
+    .legenda div { display: flex; align-items: center; gap: 8px; font-size: 14.5px; margin: 5px 0; }
+    .legenda i { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+    .nota { font-size: 13px; color: var(--texto-suave); margin-top: 14px; }
+
+    /* ---------- Dados ---------- */
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: var(--raio); overflow: hidden; border: 1px solid var(--borda); }
+    th, td { text-align: left; padding: 13px 16px; font-size: 15.5px; border-bottom: 1px solid var(--borda); }
+    th { background: var(--verde-claro); color: var(--verde); font-size: 14px; text-transform: uppercase; letter-spacing: .5px; }
+    tr:last-child td { border-bottom: 0; }
+    td .formato { font-family: Consolas, "Courier New", monospace; font-size: 13.5px; background: var(--areia); padding: 2px 6px; border-radius: 4px; }
+    .em-breve { color: #9a9c95; font-size: 14px; }
+
+    /* ---------- Fase anterior ---------- */
+    .fase { display: grid; grid-template-columns: 1.1fr 1fr; gap: 36px; align-items: start; }
+    .fase p { color: var(--texto-suave); margin-bottom: 14px; }
+    .mini-numeros { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .mini-numeros div { background: #fff; border: 1px solid var(--borda); border-radius: var(--raio); padding: 18px; }
+    .mini-numeros b { font-size: 28px; color: var(--verde); display: block; line-height: 1.1; }
+    .mini-numeros span { font-size: 14px; color: var(--texto-suave); }
+
+    /* ---------- Diário ---------- */
+    .diario { list-style: none; max-width: 820px; }
+    .diario li { display: grid; grid-template-columns: 130px 1fr; gap: 18px; padding: 16px 0; border-bottom: 1px solid var(--borda); }
+    .diario time { font-weight: 700; color: var(--terracota); font-size: 15px; }
+    .diario b { display: block; }
+    .diario p { color: var(--texto-suave); font-size: 15.5px; }
+
+    /* ---------- Equipe ---------- */
+    .equipe { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .pessoa { display: flex; gap: 14px; align-items: center; border: 1px solid var(--borda); border-radius: var(--raio); padding: 18px; background: #fff; }
+    .avatar { width: 52px; height: 52px; border-radius: 50%; background: var(--verde-claro); color: var(--verde); display: grid; place-items: center; font-weight: 700; font-size: 18px; flex-shrink: 0; }
+    .pessoa:nth-child(2) .avatar { background: var(--terracota-claro); color: var(--terracota); }
+    .pessoa:nth-child(3) .avatar { background: #f1ebe4; color: var(--solo); }
+    .pessoa b { display: block; font-size: 16.5px; }
+    .pessoa span { font-size: 14px; color: var(--texto-suave); }
+    .instituicoes { margin-top: 36px; display: flex; flex-wrap: wrap; gap: 12px; }
+    .inst { border: 1px solid var(--borda); border-radius: 8px; padding: 12px 18px; background: #fff; font-size: 15px; }
+    .inst b { color: var(--texto); }
+    .inst span { color: var(--texto-suave); font-size: 13.5px; display: block; }
+
+    /* ---------- Rodapé ---------- */
+    footer { border-top: 1px solid var(--borda); padding: 36px 0; font-size: 14.5px; color: var(--texto-suave); }
+    footer .container { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+
+    /* ---------- Responsivo ---------- */
+    @media (max-width: 980px) {
+      .grade-4, .numeros { grid-template-columns: repeat(2, 1fr); }
+      .metodo, .fase, .mapa-wrap { grid-template-columns: 1fr; }
+      .detalhe-produtos { grid-template-columns: repeat(2, 1fr); }
+      .equipe { grid-template-columns: 1fr; }
+      .barra-meses { margin-left: 150px; }
+      .produto-linha { grid-template-columns: 150px 1fr; }
+    }
+    @media (max-width: 760px) {
+      nav ul { display: none; position: absolute; top: 64px; left: 0; right: 0; background: #fff; flex-direction: column; gap: 0; border-bottom: 1px solid var(--borda); }
+      nav ul.aberto { display: flex; }
+      nav li a { display: block; padding: 14px 24px; border-top: 1px solid var(--borda); }
+      .menu-btn { display: block; }
+      .grade-4, .numeros, .detalhe-produtos, .mini-numeros { grid-template-columns: 1fr; }
+      .barra-meses { display: none; }
+      .produto-linha { grid-template-columns: 1fr; gap: 6px; }
+      .diario li { grid-template-columns: 1fr; gap: 4px; }
+      #mapa { height: 400px; }
+      section { padding: 56px 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="demo-bar">Versão de demonstração — conteúdo e dados em construção.</div>
+
+  <!-- ===================== CABEÇALHO ===================== -->
+  <header>
+    <div class="container nav">
+      <a href="#inicio" class="marca">
+        <div class="marca-icone" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M3 20c3-1 5-4 6-8M9 20c2-2 3-6 3-11M15 20c1-2 2-5 2-9M21 20c-1-1-2-3-2-6"/></svg>
+        </div>
+        <div><strong>Pastagens MT</strong><span>LAPIG/UFG · Instituto PCI</span></div>
+      </a>
+      <nav>
+        <button class="menu-btn" aria-label="Abrir menu" onclick="document.getElementById('menu').classList.toggle('aberto')">
+          <svg viewBox="0 0 24 24" width="26" height="26" stroke="#22281f" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <ul id="menu" onclick="this.classList.remove('aberto')">
+          <li><a href="#projeto">Projeto</a></li>
+          <li><a href="#metodologia">Metodologia</a></li>
+          <li><a href="#cronograma">Cronograma</a></li>
+          <li><a href="#mapa-secao">Mapa</a></li>
+          <li><a href="#dados">Dados</a></li>
+          <li><a href="#equipe">Equipe</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ===================== HERO ===================== -->
+  <div class="hero" id="inicio">
+    <div class="container">
+      <div class="etiqueta">TdR nº 13/2026 · Estratégia PCI · Eixo Produzir</div>
+      <h1>Mapeamento das áreas e da <em>condição das pastagens</em> de Mato Grosso</h1>
+      <p class="lead">Atualização e aprimoramento da série histórica 2015–2026 de distribuição e vigor das pastagens, com mapeamento experimental de florestas plantadas, em apoio ao monitoramento das metas da Estratégia PCI.</p>
+      <div class="botoes">
+        <a href="#mapa-secao" class="btn btn-primario">Explorar o mapa</a>
+        <a href="#dados" class="btn btn-secundario">Acessar os dados</a>
+      </div>
+
+      <div class="numeros">
+        <div class="numero"><b>2,5 Mi ha</b><span>meta de recuperação de pastagens de baixa produtividade até 2030</span></div>
+        <div class="numero"><b>2015–2026</b><span>série anual de pastagem e condição, com resolução de 30 m</span></div>
+        <div class="numero"><b>~72 mil</b><span>pontos de inspeção visual na base amostral atual, a ser ampliada</span></div>
+        <div class="numero"><b>3 biomas</b><span>Amazônia, Cerrado e Pantanal, em 100% dos municípios do estado</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== PROJETO / ESCOPO ===================== -->
+  <section id="projeto">
+    <div class="container">
+      <div class="titulo-secao">
+        <h2>O que o projeto entrega</h2>
+        <p>Quatro componentes integrados, com recortes estadual, municipal e dos Pactos PCI Regionais.</p>
+      </div>
+      <div class="grade-4">
+        <div class="card">
+          <div class="icone"><svg viewBox="0 0 24 24" fill="none" stroke="#2f6b3a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3 3 6v15l6-3 6 3 6-3V3l-6 3-6-3z"/><path d="M9 3v15M15 6v15"/></svg></div>
+          <h3>Distribuição das pastagens</h3>
+          <p>Mapas anuais das áreas de pastagem de 2015 a 2026, com base amostral ampliada e comparação com o MapBiomas Coleção 11.</p>
+          <div class="meta">Meta de acurácia global ≥ 90%</div>
+        </div>
+        <div class="card">
+          <div class="icone"><svg viewBox="0 0 24 24" fill="none" stroke="#2f6b3a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg></div>
+          <h3>Condição (vigor)</h3>
+          <p>Séries anuais de vigor vegetativo classificadas em Alto, Médio e Baixo, a partir de séries temporais de EVI normalizadas por bioma.</p>
+          <div class="meta">Meta de acurácia global ≥ 80%</div>
+        </div>
+        <div class="card">
+          <div class="icone t"><svg viewBox="0 0 24 24" fill="none" stroke="#b8583a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-6M7 16h10l-3-4h2l-4-5h1.5L12 2 8.5 7H10l-4 5h2z"/></svg></div>
+          <h3>Florestas plantadas</h3>
+          <p>Mapeamento anual da silvicultura (eucalipto e teca, sem distinção de espécie) de 2022 a 2026 e conversões de pastagem para esse uso.</p>
+          <div class="meta exp">Produto experimental</div>
+        </div>
+        <div class="card">
+          <div class="icone s"><svg viewBox="0 0 24 24" fill="none" stroke="#7a5a3c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4-4 4"/><path d="M3 7h18"/><path d="M7 21l-4-4 4-4"/><path d="M21 17H3"/></svg></div>
+          <h3>Transições e metas</h3>
+          <p>Transições anuais entre classes de condição, conversões para outros usos e balanço de hectares recuperados no eixo Produzir.</p>
+          <div class="meta">Estado, municípios e Pactos Regionais</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== METODOLOGIA ===================== -->
+  <section id="metodologia" class="cinza">
+    <div class="container">
+      <div class="titulo-secao">
+        <h2>Metodologia</h2>
+        <p>Continuidade da abordagem consolidada em 2015–2022, para manter a comparabilidade da série, com ajustes documentados para ganho de acurácia.</p>
+      </div>
+      <div class="metodo">
+        <div class="bloco-metodo">
+          <h3><i></i>Áreas de pastagem</h3>
+          <ol class="fluxo">
+            <li><h4>Base amostral</h4><p>Revisão e ampliação dos pontos de treinamento e validação por inspeção visual de intérpretes.</p></li>
+            <li><h4>Dados orbitais</h4><p>Landsat Collection 2 Tier 1; <em>feature space</em> multiespectral e geomorfométrico.</p></li>
+            <li><h4>Classificação</h4><p>Random Forest por cena, com probabilidade de pastagem por pixel.</p></li>
+            <li><h4>Pós-processamento</h4><p>Filtro espaço-temporal e discretização por limiar de probabilidade.</p></li>
+            <li><h4>Validação</h4><p>Amostragem independente: acurácia global, omissão e comissão; comparação com MapBiomas C11.</p></li>
+          </ol>
+        </div>
+        <div class="bloco-metodo t">
+          <h3><i></i>Condição das pastagens</h3>
+          <ol class="fluxo">
+            <li><h4>Séries temporais de EVI</h4><p>Séries Landsat filtradas e dessazonalizadas para cada pixel de pastagem.</p></li>
+            <li><h4>Normalização por bioma</h4><p>Ajuste do sinal para Amazônia, Cerrado e Pantanal.</p></li>
+            <li><h4>Classes de vigor</h4><p>Classificação anual em três níveis.</p>
+              <div class="classes">
+                <span class="classe" style="background:var(--vigor-alto)">Alto</span>
+                <span class="classe" style="background:var(--vigor-medio)">Médio</span>
+                <span class="classe" style="background:var(--vigor-baixo)">Baixo</span>
+              </div>
+            </li>
+            <li><h4>Validação</h4><p>Pontos de condição levantados em campo e/ou base de referência equivalente.</p></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== CRONOGRAMA ===================== -->
+  <section id="cronograma">
+    <div class="container">
+      <div class="titulo-secao">
+        <h2>Produtos e cronograma</h2>
+        <p>Cinco produtos ao longo da vigência de 12 meses, contados a partir da assinatura do contrato.</p>
+      </div>
+
+      <div class="linha-tempo">
+        <div class="barra-meses">
+          <span>M1</span><span>M2</span><span>M3</span><span>M4</span><span>M5</span><span>M6</span>
+          <span>M7</span><span>M8</span><span>M9</span><span>M10</span><span>M11</span><span>M12</span>
+        </div>
+        <div id="linhas-produtos"></div>
+      </div>
+
+      <div class="detalhe-produtos">
+        <div><b>Produto 1</b><p>Plano de trabalho, diagnóstico da base amostral e requisitos de amostras de florestas plantadas.</p></div>
+        <div><b>Produto 2</b><p>Base amostral ampliada e mapas anuais de pastagem 2015–2026, com relatório de acurácia.</p></div>
+        <div><b>Produto 3</b><p>Mapas de vigor 2015–2026 e 1ª versão do mapa de florestas plantadas, com nota técnica.</p></div>
+        <div><b>Produto 4</b><p>Relatório parcial de transições e balanço de metas do eixo Produzir.</p></div>
+        <div><b>Produto 5</b><p>Relatório técnico final e entrega organizada de todas as bases de dados.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== MAPA ===================== -->
+  <section id="mapa-secao" class="cinza">
+    <div class="container">
+      <div class="titulo-secao">
+        <h2>Mapa interativo</h2>
+        <p>Visualizador dos produtos do projeto. As camadas temáticas serão publicadas conforme a aprovação de cada produto.</p>
+      </div>
+      <div class="mapa-wrap">
+        <div id="mapa" role="region" aria-label="Mapa de Mato Grosso"></div>
+        <aside class="painel">
+          <h3>Camadas</h3>
+          <label class="camada"><input type="checkbox" id="cam-estado" checked> Limite estadual</label>
+          <label class="camada"><input type="checkbox" id="cam-municipios"> Municípios</label>
+          <label class="camada off"><input type="checkbox" disabled> Pastagem 2015–2026 <small>Produto 2</small></label>
+          <label class="camada off"><input type="checkbox" disabled> Vigor das pastagens <small>Produto 3</small></label>
+          <label class="camada off"><input type="checkbox" disabled> Florestas plantadas <small>Produto 3</small></label>
+          <label class="camada off"><input type="checkbox" disabled> Transições <small>Produto 4</small></label>
+
+          <div class="legenda">
+            <h4>Condição das pastagens</h4>
+            <div><i style="background:var(--vigor-alto)"></i> Vigor alto</div>
+            <div><i style="background:var(--vigor-medio)"></i> Vigor médio</div>
+            <div><i style="background:var(--vigor-baixo)"></i> Vigor baixo</div>
+          </div>
+          <p class="nota" id="nota-mapa">Limites: malhas territoriais do IBGE.</p>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== DADOS ===================== -->
+  <section id="dados">
+    <div class="container">
+      <div class="titulo-secao">
+        <h2>Dados e documentos</h2>
+        <p>Repositório organizado por produto e por ano, com dicionário de dados. Rasters em 30 m; sistema de referência indicado em cada arquivo.</p>
+      </div>
+      <table>
+        <thead><tr><th>Conjunto</th><th>Período</th><th>Formato</th><th>Disponibilidade</th></tr></thead>
+        <tbody>
+          <tr><td>Plano de trabalho e diagnóstico da base amostral</td><td>—</td><td><span class="formato">.pdf</span> <span class="formato">.docx</span></td><td class="em-breve">Em elaboração</td></tr>
+          <tr><td>Base amostral de treinamento e validação</td><td>2015–2026</td><td><span class="formato">.gpkg</span> <span class="formato">.csv</span></td><td class="em-breve">Produto 2</td></tr>
+          <tr><td>Mapas anuais de pastagem</td><td>2015–2026</td><td><span class="formato">.tif</span></td><td class="em-breve">Produto 2</td></tr>
+          <tr><td>Mapas anuais de condição (vigor)</td><td>2015–2026</td><td><span class="formato">.tif</span></td><td class="em-breve">Produto 3</td></tr>
+          <tr><td>Florestas plantadas (experimental)</td><td>2022–2026</td><td><span class="formato">.tif</span> <span class="formato">.gpkg</span></td><td class="em-breve">Produto 3</td></tr>
+          <tr><td>Estatísticas por município e Pactos Regionais</td><td>2015–2026</td><td><span class="formato">.xlsx</span> <span class="formato">.csv</span></td><td class="em-breve">Produtos 2 a 4</td></tr>
+          <tr><td>Transições e balanço de metas</td><td>2015–2026</td><td><span class="formato">.xlsx</span></td><td class="em-breve">Produto 4</td></tr>
+          <tr><td>Relatório técnico final e dicionário de dados</td><td>—</td><td><span class="formato">.pdf</span> <span class="formato">.docx</span></td><td class="em-breve">Produto 5</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===================== FASE ANTERIOR ===================== -->
+  <section class="cinza">
+    <div class="container fase">
+      <div>
+        <div class="titulo-secao" style="margin-bottom:18px">
+          <h2>Ponto de partida: a fase 2022–2023</h2>
+        </div>
+        <p>Entre 2022 e 2023, a parceria entre o Instituto PCI, o LAPIG/UFG e parceiros consolidou a metodologia de mapeamento das pastagens mato-grossenses para a série 2015–2022, com análises de transição entre classes de vigor, balanço anual de metas, recortes por município e por tamanho de propriedade (CAR) e mapa de necessidade de intervenção.</p>
+        <p>Esses produtos tornaram-se a principal referência de monitoramento do eixo Produzir. A nova fase estende a série até 2026 sem alterar os anos já entregues; o reprocessamento da série com a base amostral ampliada compõe o novo produto aprimorado.</p>
+      </div>
+      <div class="mini-numeros">
+        <div><b>94,3%</b><span>acurácia global média dos mapas de pastagem</span></div>
+        <div><b>71,2%</b><span>acurácia na detecção de áreas com indícios de degradação</span></div>
+        <div><b>371</b><span>pontos avaliados <em>in situ</em> em campanhas de campo</span></div>
+        <div><b>2015–2022</b><span>série entregue na primeira fase</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== DIÁRIO ===================== -->
+  <section>
+    <div class="container">
+      <div class="titulo-secao">
+        <h2>Diário do projeto</h2>
+        <p>Registro das principais etapas e decisões.</p>
+      </div>
+      <ul class="diario">
+        <li><time>Nov 2026</time><div><b>Elaboração do Produto 1</b><p>Plano de trabalho detalhado e diagnóstico da base amostral em andamento.</p></div></li>
+        <li><time>09 nov 2026</time><div><b>Reunião de alinhamento da equipe</b><p>Definição das coordenações e da estratégia de atualização das amostras.</p></div></li>
+        <li><time>Out 2026</time><div><b>Assinatura do contrato</b><p>Início da contagem dos 12 meses de execução.</p></div></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== EQUIPE ===================== -->
+  <section id="equipe" class="cinza">
+    <div class="container">
+      <div class="titulo-secao">
+        <h2>Equipe e instituições</h2>
+      </div>
+      <div class="equipe">
+        <div class="pessoa"><div class="avatar">LF</div><div><b>Laerte Guimarães Ferreira</b><span>Coordenação geral · LAPIG/UFG</span></div></div>
+        <div class="pessoa"><div class="avatar">NT</div><div><b>Nathália Teles</b><span>Coordenação técnico-institucional</span></div></div>
+        <div class="pessoa"><div class="avatar">VM</div><div><b>Vinícius Mesquita</b><span>Coordenação técnico-computacional</span></div></div>
+      </div>
+      <div class="instituicoes">
+        <div class="inst"><b>LAPIG/UFG</b><span>Execução técnica</span></div>
+        <div class="inst"><b>FUNAPE</b><span>Fundação de apoio</span></div>
+        <div class="inst"><b>Instituto PCI</b><span>Contratante</span></div>
+        <div class="inst"><b>IMAC · FAMATO · Acrimat</b><span>Parceiros do projeto</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== RODAPÉ ===================== -->
+  <footer>
+    <div class="container">
+      <div><b style="color:var(--texto)">LAPIG/UFG</b> — Laboratório de Processamento de Imagens e Geoprocessamento<br>Universidade Federal de Goiás · Goiânia, GO</div>
+      <div>Produtos de titularidade do Instituto PCI · Autoria técnica LAPIG/UFG<br>Última atualização: <span id="atualizacao">nov 2026</span></div>
+    </div>
+  </footer>
+
+  <script>
+    /* ---------- Cronograma (dados editáveis) ---------- */
+    const produtos = [
+      { nome: "Produto 1", desc: "Plano de trabalho", mes: 1, status: "Em andamento", ativo: true },
+      { nome: "Produto 2", desc: "Base amostral e pastagem", mes: 4, status: "Previsto" },
+      { nome: "Produto 3", desc: "Vigor e florestas plantadas", mes: 6, status: "Previsto" },
+      { nome: "Produto 4", desc: "Transições e metas", mes: 7, status: "Previsto" },
+      { nome: "Produto 5", desc: "Relatório final", mes: 8, status: "Previsto" }
+    ];
+    const alvo = document.getElementById("linhas-produtos");
+    let inicio = 0;
+    produtos.forEach(p => {
+      const esquerda = (inicio / 12) * 100;
+      const largura = ((p.mes - inicio) / 12) * 100;
+      alvo.insertAdjacentHTML("beforeend", `
+        <div class="produto-linha">
+          <div class="nome"><b>${p.nome}</b><small>${p.desc}</small><br>
+            <span class="status ${p.ativo ? "andamento" : ""}">${p.status}</span></div>
+          <div class="trilha">${"<span></span>".repeat(12)}
+            <div class="marco ${p.ativo ? "ativo" : ""}" style="left:${esquerda}%;width:${largura}%">Mês ${p.mes}</div>
+          </div>
+        </div>`);
+      inicio = p.mes;
+    });
+
+    /* ---------- Mapa ---------- */
+    (function () {
+      if (typeof L === "undefined") {
+        document.getElementById("mapa").innerHTML =
+          '<p style="padding:24px;color:#5d6458">Não foi possível carregar o mapa.</p>';
+        return;
+      }
+      const mapa = L.map("mapa", { scrollWheelZoom: false }).setView([-12.9, -55.9], 6);
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+        attribution: '&copy; OpenStreetMap &copy; CARTO',
+        maxZoom: 18
+      }).addTo(mapa);
+
+      const base = "https://servicodados.ibge.gov.br/api/v3/malhas/estados/51?formato=application/vnd.geo+json&qualidade=intermediaria";
+      let estado, municipios;
+
+      fetch(base)
+        .then(r => r.json())
+        .then(geo => {
+          estado = L.geoJSON(geo, { style: { color: "#2f6b3a", weight: 2.5, fillColor: "#2f6b3a", fillOpacity: 0.06 } }).addTo(mapa);
+          mapa.fitBounds(estado.getBounds(), { padding: [10, 10] });
+        })
+        .catch(() => {
+          estado = L.rectangle([[-18.05, -61.65], [-7.35, -50.2]], { color: "#2f6b3a", weight: 2, fillOpacity: 0.04, dashArray: "6 4" }).addTo(mapa);
+          document.getElementById("nota-mapa").textContent = "Limite estadual aproximado (malha do IBGE indisponível no momento).";
+        });
+
+      document.getElementById("cam-estado").addEventListener("change", e => {
+        if (!estado) return;
+        e.target.checked ? estado.addTo(mapa) : mapa.removeLayer(estado);
+      });
+
+      document.getElementById("cam-municipios").addEventListener("change", e => {
+        if (!e.target.checked) { if (municipios) mapa.removeLayer(municipios); return; }
+        if (municipios) { municipios.addTo(mapa); return; }
+        fetch(base + "&intrarregiao=municipio")
+          .then(r => r.json())
+          .then(geo => {
+            municipios = L.geoJSON(geo, { style: { color: "#b8583a", weight: 0.7, fillOpacity: 0 } }).addTo(mapa);
+          })
+          .catch(() => {
+            e.target.checked = false;
+            document.getElementById("nota-mapa").textContent = "Malha municipal indisponível no momento.";
+          });
+      });
+    })();
+  </script>
+</body>
+</html>
